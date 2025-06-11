@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.conf import settings
 
@@ -31,6 +32,13 @@ class Project(models.Model):
         on_delete=models.CASCADE,
         related_name='created_projects'
     )
+    
+    image = models.CharField(max_length=100)
+    stageColor = models.CharField(max_length=20, default='blue')
+    roles = ArrayField(models.CharField(max_length=100), blank=True, default=list)
+    website = models.URLField(blank=True, null=True)
+    teamSize = models.PositiveIntegerField(default=1)
+    category = models.CharField(max_length=100)
     team_members = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         related_name='projects',

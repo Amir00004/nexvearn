@@ -41,7 +41,6 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         )
         return user
 
-User = get_user_model()
 
 class ProjectSerializer(serializers.ModelSerializer):
     creator = serializers.ReadOnlyField(source='creator.username')
@@ -51,11 +50,30 @@ class ProjectSerializer(serializers.ModelSerializer):
         queryset=User.objects.all(),
         required=False
     )
+    roles = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        required=False
+    )
 
     class Meta:
         model = Project
-        fields = ['id', 'title', 'description', 'creator', 'team_members', 'stage', 'created_at', 'updated_at']
-
+        fields = [
+            'id',
+            'title',
+            'description',
+            'creator',
+            
+            'image',
+            'stageColor',
+            'category',
+            'roles',
+            'website',
+            'teamSize',
+            'team_members',
+            'stage',
+            'created_at',
+            'updated_at'
+        ]
 class ConversationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Conversation
