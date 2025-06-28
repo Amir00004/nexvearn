@@ -43,6 +43,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
 
 class ProjectSerializer(serializers.ModelSerializer):
+    print("hi")
     creator = serializers.ReadOnlyField(source='creator.username')
     team_members = serializers.SlugRelatedField(
         many=True,
@@ -62,7 +63,6 @@ class ProjectSerializer(serializers.ModelSerializer):
             'title',
             'description',
             'creator',
-            
             'image',
             'stageColor',
             'category',

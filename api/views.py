@@ -16,6 +16,7 @@ from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.views.decorators.csrf import csrf_exempt
 import requests
+from django.http import HttpResponseRedirect
 
 User = get_user_model()
 
@@ -59,9 +60,9 @@ def google_callback(request):
     user, created = User.objects.get_or_create(
         email=email,
         defaults={
-            "username": email,
+            "username": name,
             "first_name": name,
-            "role": "member",  # or "creator" if you're targeting project creators by default
+            "role": "creator",  # default role
         }
     )
 
@@ -72,15 +73,26 @@ def google_callback(request):
     refresh = RefreshToken.for_user(user)
     access = refresh.access_token
 
-    frontend_redirect = "http://localhost:3000/home"  # Update with your frontend URL
-    params = urlencode({
-        "access": str(access),
-        "refresh": str(refresh),
-        "email": user.email,
-        "name": user.first_name,
-        "role": user.role,
-    })
-    return redirect(f"{frontend_redirect}?{params}")
+    # Create response with redirect
+    response = HttpResponseRedirect("http://localhost:3000/home")  # update as needed
+
+    # Set cookies (secure=True only in HTTPS)
+    response.set_cookie(
+        key="access_token",
+        value=str(access),
+        httponly=True,
+        secure=False,  # Set to True in production
+        samesite="Lax"
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=str(refresh),
+        httponly=True,
+        secure=False,  # Set to True in production
+        samesite="Lax"
+    )
+
+    return response
 
 @csrf_exempt
 def google_login_redirect(request):
@@ -109,31 +121,68 @@ class RegisterView(APIView):
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            data = response.data
+            refresh = data.get("refresh")
+            access = data.get("access")
 
+            # Set HttpOnly cookies
+            response.set_cookie(
+                key='access_token',
+                value=access,
+                httponly=True,
+                secure=True,  # Use False for local dev (http), True for production (https)
+                samesite='Lax',
+            )
+            response.set_cookie(
+                key='refresh_token',
+                value=refresh,
+                httponly=True,
+                secure=True,
+                samesite='Lax',
+            )
+        return response
+
+from pprint import pprint
 
 class ProjectListCreateView(generics.ListCreateAPIView):
+    print("ProjectListCreateView initialized")
+    def post(self, request, *args, **kwargs):
+        print("\n===== DEBUGGING REQUEST =====")
+        print("METHOD:", request.method)
+        print("PATH:", request.path)
+        print("HEADERS:")
+        pprint(dict(request.headers))
+        print("BODY (raw):", request.body)
+        print("DATA (parsed):", request.data)
+        print("USER:", request.user)
+        print("COOKIES:", request.COOKIES)
+        print("=============================\n")
+        if request.user.is_authenticated:
+            print("User is authenticated:", request.user.username)  
+        return super().post(request, *args, **kwargs)
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    # permission_classes = [IsAuthenticated]
-
+    permission_classes = [IsAuthenticated]
     def perform_create(self, serializer):
         serializer.save(creator=self.request.user)
 
 class ProjectRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
         serializer.save(sender=self.request.user)
